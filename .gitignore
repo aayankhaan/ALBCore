@@ -1,0 +1,34 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+/C:\Users\Ayaan\.gemini\tmp\albcore\1a6db7a3-db42-48f8-8db8-4faf533fac2a\plans/
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.classpath
+.project
+.factorypath
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.netbeans_derby/
+
+### Others ###
+*.log
+*.db

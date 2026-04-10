@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────
+# ALBCore Rarities Configuration
+# Add, remove, or edit rarities as needed
+# Supports full MiniMessage format
+# Use %rarity% in item lore to display
+# ─────────────────────────────────────────
+
+# Format:
+# RARITY_NAME:
+#   display: "<color>Display Text"
+
+COMMON:
+  display: "<white>COMMON"
+
+UNCOMMON:
+  display: "<green>UNCOMMON"
+
+RARE:
+  display: "<aqua>RARE"
+
+EPIC:
+  display: "<light_purple>EPIC"
+
+LEGENDARY:
+  display: "<gold>LEGENDARY"
+
+# Supports gradients too
+MYTHIC:
+  display: "<gradient:#ff00cc:#aa00ff>MYTHIC</gradient>"
+
+# Example custom rarity — uncomment to use
+# DIVINE:
+#   display: "<gradient:#ffffff:#ffff00>DIVINE</gradient>"

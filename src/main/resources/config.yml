@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────
+# ALBCore Configuration
+# ─────────────────────────────────────────
+
+# Enable debug mode
+# Shows extra console logs for all ALBCore systems
+# Toggle in-game with /albcore debug
+debug: false
+
+# Chat prefix shown before ALBCore messages
+# Supports MiniMessage format
+prefix: "<dark_gray>[<gradient:#00aaff:#aa00ff>ALBCore</gradient><dark_gray>] "
+
+# Format for cooldown time display
+# %.1f = one decimal place (e.g. 3.5s)
+# %.0f = no decimal (e.g. 3s)
+cooldown-format: "%.1fs"
+
+# Log every item registered to the console
+# Useful for debugging dependent plugins
+# Not recommended in production
+log-item-registration: false
+
+# Check for ALBCore updates on startup
+check-updates: true
+
+# Send anonymous usage statistics via bStats
+# Helps improve the plugin — no personal data collected
+metrics: true

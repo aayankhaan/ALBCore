@@ -1,0 +1,17 @@
+name: ALBCore
+version: 1.0.0
+main: com.aayan.albcore.ALBCore
+api-version: '1.21'
+authors: [ALB Studio, Aayan]
+softdepend: [PlaceholderAPI, Vault, FancyHolograms, IridiumSkyblock, WorldGuard, ShopGUIPlus]
+commands:
+  albcore:
+    description: ALBCore admin commands
+    usage: /albcore <help|version|debug|reload|rarities|items|cooldowns>
+    permission: albcore.admin
+    permission-default: op
+
+permissions:
+  albcore.admin:
+    description: Access to all ALBCore admin commands
+    default: op
