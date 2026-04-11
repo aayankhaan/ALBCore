@@ -1,3 +1,6 @@
+
+// Yeh bhen ka lawda work nhi kr raha mkc ProtocolLib ki
+
 package com.aayan.albcore.input;
 
 import com.aayan.albcore.ALBCore;
@@ -6,64 +9,47 @@ import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.*;
 import com.comphenix.protocol.wrappers.BlockPosition;
-import com.comphenix.protocol.wrappers.WrappedBlockData;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Consumer;
 
 public class ProtocolSignManager {
 
     private static final ProtocolManager manager = ProtocolLibrary.getProtocolManager();
-    private static final Map<UUID, Consumer<String[]>> handlers = new HashMap<>();
 
-    public static void init() {
-        manager.addPacketListener(new PacketAdapter(
-                ALBCore.getInstance(),
-                ListenerPriority.NORMAL,
-                PacketType.Play.Client.UPDATE_SIGN
-        ) {
-            @Override
-            public void onPacketReceiving(PacketEvent event) {
-                Player player = event.getPlayer();
-                Consumer<String[]> handler = handlers.remove(player.getUniqueId());
+    public static void open(Player player) {
+        Location loc = player.getLocation().clone();
+        loc.setY(player.getWorld().getMaxHeight() - 1);
 
-                if (handler == null) return;
+        Bukkit.getScheduler().runTask(ALBCore.getInstance(), () -> {
+            BlockData signData = Material.OAK_SIGN.createBlockData(bd ->
+                    ((org.bukkit.block.data.type.Sign) bd).setRotation(org.bukkit.block.BlockFace.SOUTH)
+            );
+            player.sendBlockChange(loc, signData);
 
-                String[] lines = event.getPacket().getStringArrays().read(0);
-                handler.accept(lines);
+            try {
+                org.bukkit.block.Sign virtualSign =
+                        (org.bukkit.block.Sign) Material.OAK_SIGN.createBlockData().createBlockState();
+                virtualSign.getSide(org.bukkit.block.sign.Side.FRONT).setLine(0, "hi");
+                player.sendBlockUpdate(loc, virtualSign);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+
+            // Open the editor
+            Bukkit.getScheduler().runTaskLater(ALBCore.getInstance(), () -> {
+                BlockPosition pos = new BlockPosition(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+                PacketContainer openSign = manager.createPacket(PacketType.Play.Server.OPEN_SIGN_EDITOR);
+                openSign.getBlockPositionModifier().write(0, pos);
+                openSign.getBooleans().write(0, true);
+                try {
+                    manager.sendServerPacket(player, openSign);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, 2L);
         });
-    }
-
-    public static void open(Player player, String[] defaultLines, Consumer<String[]> callback) {
-        handlers.put(player.getUniqueId(), callback);
-
-        Location loc = player.getLocation().clone().add(0, 255, 0); // out of view
-
-        BlockPosition pos = new BlockPosition(loc.toVector());
-
-        // Fake sign block
-        PacketContainer blockChange = manager.createPacket(PacketType.Play.Server.BLOCK_CHANGE);
-        blockChange.getBlockPositionModifier().write(0, pos);
-        blockChange.getBlockData().write(
-                0,
-                WrappedBlockData.createData(Material.OAK_SIGN)
-        );
-
-        // Open editor
-        PacketContainer openSign = manager.createPacket(PacketType.Play.Server.OPEN_SIGN_EDITOR);
-        openSign.getBlockPositionModifier().write(0, pos);
-
-        try {
-            manager.sendServerPacket(player, blockChange);
-            manager.sendServerPacket(player, openSign);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 }

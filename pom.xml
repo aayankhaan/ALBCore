@@ -62,7 +62,6 @@
   <!-- ================= DEPENDENCIES ================= -->
 
   <dependencies>
-
     <!-- Paper API -->
     <dependency>
       <groupId>io.papermc.paper</groupId>
@@ -133,7 +132,7 @@
       <version>5.4.0</version>
       <scope>provided</scope>
     </dependency>
-
+    
   </dependencies>
 
   <!-- ================= BUILD ================= -->

@@ -1,18 +1,14 @@
 package com.aayan.albcore.input;
 
-
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.SignChangeEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.inventory.*;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.view.AnvilView;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -20,7 +16,6 @@ import java.util.function.Consumer;
 
 public final class InputListener implements Listener {
 
-    // --- Anvil Handling ---
     private static final Map<UUID, Consumer<String>> anvilHandlers = new HashMap<>();
 
     public static void registerAnvil(Player player, Consumer<String> callback) {
@@ -29,54 +24,78 @@ public final class InputListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onAnvilPrepare(PrepareAnvilEvent e) {
-        if (!anvilHandlers.containsKey(e.getView().getPlayer().getUniqueId())) return;
-        
-        // Ensure there is always a result item so the client can click it
-        ItemStack result = e.getResult();
-        if (result == null || result.getType().isAir()) {
-            ItemStack left = e.getInventory().getItem(0);
-            if (left != null) {
-                e.setResult(left.clone());
-            }
+        if (!(e.getView() instanceof AnvilView view)) return;
+        if (!anvilHandlers.containsKey(view.getPlayer().getUniqueId())) return;
+
+        ItemStack left = e.getInventory().getItem(0);
+        if (left != null) {
+            e.setResult(left.clone());
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onAnvilClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
 
         Consumer<String> handler = anvilHandlers.get(player.getUniqueId());
         if (handler == null) return;
 
-        if (e.getClickedInventory() instanceof AnvilInventory && e.getRawSlot() == 2) {
+        if (!(e.getView() instanceof AnvilView view)) return;
+
+        if (!(e.getClickedInventory() instanceof AnvilInventory anvilInv)) {
             e.setCancelled(true);
+            return;
+        }
 
-            String text = ((AnvilView) e.getView()).getRenameText();
+        if (e.getRawSlot() != 2) {
+            e.setCancelled(true);
+            return;
+        }
 
-            anvilHandlers.remove(player.getUniqueId());
-            player.closeInventory();
+        e.setCancelled(true);
 
-            handler.accept(text == null ? "" : text);
+        String text = view.getRenameText();
+
+        // Clear ALL anvil slots BEFORE closing so Bukkit has nothing to return
+        anvilInv.setItem(0, null);
+        anvilInv.setItem(1, null);
+        anvilInv.setItem(2, null);
+
+        player.setItemOnCursor(null);
+
+        anvilHandlers.remove(player.getUniqueId());
+        player.closeInventory();
+        player.updateInventory();
+
+        handler.accept(text == null ? "" : text);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onAnvilDrag(InventoryDragEvent e) {
+        if (!(e.getWhoClicked() instanceof Player player)) return;
+        if (!anvilHandlers.containsKey(player.getUniqueId())) return;
+
+        if (e.getView() instanceof AnvilView) {
+            e.setCancelled(true);
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onAnvilClose(InventoryCloseEvent e) {
-        anvilHandlers.remove(e.getPlayer().getUniqueId());
-    }
+        if (!(e.getPlayer() instanceof Player player)) return;
 
-    // --- Sign Handling ---
-    private static final Map<UUID, Consumer<String[]>> signHandlers = new HashMap<>();
+        // Only runs if closed WITHOUT clicking result (e.g. pressing Escape)
+        if (!anvilHandlers.containsKey(player.getUniqueId())) return;
 
-    public static void registerSign(Player player, Consumer<String[]> callback) {
-        signHandlers.put(player.getUniqueId(), callback);
-    }
-
-    @EventHandler(priority = EventPriority.NORMAL)
-    public void onSignChange(SignChangeEvent e) {
-        Consumer<String[]> handler = signHandlers.remove(e.getPlayer().getUniqueId());
-        if (handler != null) {
-            handler.accept(e.getLines());
+        if (e.getInventory() instanceof AnvilInventory inv) {
+            inv.setItem(0, null);
+            inv.setItem(1, null);
+            inv.setItem(2, null);
         }
+
+        player.setItemOnCursor(null);
+        player.updateInventory();
+
+        anvilHandlers.remove(player.getUniqueId());
     }
+
 }

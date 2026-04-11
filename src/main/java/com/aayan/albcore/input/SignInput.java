@@ -23,13 +23,11 @@ public final class SignInput {
     }
 
     public void open(Player player) {
-        if (handler == null) return;
-
         if (!ALBCore.api().protocolLib().isEnabled()) {
             TextUtil.send(player, "<red>Error: You must install ProtocolLib to use this feature.");
             return;
         }
 
-        ProtocolSignManager.open(player, defaultLines, handler);
+        ProtocolSignManager.open(player);
     }
 }

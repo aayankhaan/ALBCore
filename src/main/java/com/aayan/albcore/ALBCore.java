@@ -60,9 +60,9 @@ public final class ALBCore extends JavaPlugin {
         // Load persistent cooldowns
         api.cooldowns().loadFromDatabase();
 
-        if (protocolLib.isEnabled()) {
-            ProtocolSignManager.init();
-        }
+//        if (protocolLib.isEnabled()) {
+//            ProtocolSignManager.init();
+//        }
 
         onHoldTrigger  = new OnHoldTrigger(this);
         onSneakTrigger = new OnSneakTrigger();
