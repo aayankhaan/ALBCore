@@ -6,6 +6,7 @@ import com.aayan.albcore.config.CoreConfig;
 import com.aayan.albcore.data.DatabaseManager;
 import com.aayan.albcore.data.PlayerStatManager;
 import com.aayan.albcore.effect.ConsoleCommandEffect;
+import com.aayan.albcore.effect.DamageBoostEffect;
 import com.aayan.albcore.effect.HealEffect;
 import com.aayan.albcore.effect.AddHeartsEffect;
 import com.aayan.albcore.effect.LightningEffect;
@@ -56,6 +57,7 @@ public final class ALBCoreAPI {
     private final LightningEffect     lightning  = new LightningEffect();
     private final HealEffect          heal       = new HealEffect();
     private final AddHeartsEffect     addHearts  = new AddHeartsEffect();
+    private final DamageBoostEffect   damageBoost = new DamageBoostEffect();
 
     // triggers
     private OnHoldTrigger onHoldTrigger;
@@ -102,8 +104,6 @@ public final class ALBCoreAPI {
         this.rarities.load();
     }
 
-    // ── Setters ───────────────────────────────────────────
-
     public void setDatabase(DatabaseManager database) {
         this.database = database;
         this.stats = new PlayerStatManager(database);
@@ -119,8 +119,6 @@ public final class ALBCoreAPI {
     public void setOnSneakTrigger(OnSneakTrigger t) { this.onSneakTrigger = t; }
     public void setOnClickTrigger(OnClickTrigger t) { this.onClickTrigger = t; }
     public void setOnBreakTrigger(OnBreakTrigger t) { this.onBreakTrigger = t; }
-
-    // ── Getters ───────────────────────────────────────────
 
     public CooldownManager cooldowns() { return cooldowns; }
     public CustomItemRegistry registry() { return registry; }
@@ -139,6 +137,7 @@ public final class ALBCoreAPI {
     public LightningEffect      lightning()  { return lightning; }
     public HealEffect           heal()       { return heal; }
     public AddHeartsEffect      addHearts()  { return addHearts; }
+    public DamageBoostEffect    damageBoost() { return damageBoost; }
 
     public DatabaseManager db() { return database; }
     public PlayerStatManager stats() { return stats; }
@@ -150,8 +149,6 @@ public final class ALBCoreAPI {
     public OnSneakTrigger onSneak() { return onSneakTrigger; }
     public OnClickTrigger onClick() { return onClickTrigger; }
     public OnBreakTrigger onBreak() { return onBreakTrigger; }
-
-    // ── Convenience ───────────────────────────────────────
 
     public ItemBuilder item(Material material) {
         return new ItemBuilder(material);
@@ -165,9 +162,6 @@ public final class ALBCoreAPI {
         return new ParticleBuilder(particle);
     }
 
-    /**
-     * Helper for item serialization.
-     */
     public String toBase64(ItemStack item) {
         return SerializationUtil.toBase64(item);
     }

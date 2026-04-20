@@ -57,6 +57,12 @@
       <url>https://jitpack.io</url>
     </repository>
 
+    <!-- MythicMobs -->
+    <repository>
+      <id>lumine</id>
+      <url>https://mvn.lumine.io/repository/maven-public/</url>
+    </repository>
+
   </repositories>
 
   <!-- ================= DEPENDENCIES ================= -->
@@ -132,7 +138,15 @@
       <version>5.4.0</version>
       <scope>provided</scope>
     </dependency>
-    
+
+    <!-- MythicMobs -->
+    <dependency>
+      <groupId>io.lumine</groupId>
+      <artifactId>Mythic-Dist</artifactId>
+      <version>5.6.1</version>
+      <scope>provided</scope>
+    </dependency>
+
   </dependencies>
 
   <!-- ================= BUILD ================= -->

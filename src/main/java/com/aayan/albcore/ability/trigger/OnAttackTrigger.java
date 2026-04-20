@@ -2,6 +2,7 @@ package com.aayan.albcore.ability.trigger;
 
 import com.aayan.albcore.ALBCore;
 import com.aayan.albcore.condition.ConditionSet;
+import com.aayan.albcore.condition.MobTypeCondition;
 import com.aayan.albcore.util.TextUtil;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -42,6 +43,8 @@ public final class OnAttackTrigger implements Listener {
 
         for (AttackEntry entry : entries) {
             if (entry.itemId() != null && !entry.itemId().equals(registryId)) continue;
+            injectMobTarget(entry.conditions(), victim);
+
             if (!entry.conditions().evaluate(player)) continue;
 
             if (entry.cooldownMs() > 0 && ALBCore.api().cooldowns()
@@ -64,4 +67,20 @@ public final class OnAttackTrigger implements Listener {
     }
 
     public void clear() { entries.clear(); }
+
+
+    private void injectMobTarget(ConditionSet conditions, Entity target) {
+        if (conditions == null || conditions.isEmpty()) return;
+        try {
+            var field = ConditionSet.class.getDeclaredField("conditions");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            var list = (java.util.List<com.aayan.albcore.condition.Condition>) field.get(conditions);
+            for (var condition : list) {
+                if (condition instanceof MobTypeCondition mtc) {
+                    mtc.withTarget(target);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
 }

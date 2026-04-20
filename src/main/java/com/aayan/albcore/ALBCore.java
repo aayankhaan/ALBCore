@@ -9,6 +9,7 @@ import com.aayan.albcore.gui.GuiManager;
 import com.aayan.albcore.input.InputListener;
 import com.aayan.albcore.hook.ALBCorePlaceholders;
 import com.aayan.albcore.hook.FancyHologramsHook;
+import com.aayan.albcore.hook.MythicMobsHook;
 import com.aayan.albcore.hook.ProtectionHook;
 import com.aayan.albcore.hook.ProtocolLibHook;
 import com.aayan.albcore.hook.ShopGUIPlusHook;
@@ -41,7 +42,6 @@ public final class ALBCore extends JavaPlugin {
         instance = this;
         api = new ALBCoreAPI(this);
 
-        // init util first before anything uses it
         PlaceholderUtil.init();
 
         database = new DatabaseManager(this);
@@ -106,6 +106,7 @@ public final class ALBCore extends JavaPlugin {
             getLogger().info("FancyHolograms not found — hologram features disabled.");
         }
         ProtectionHook.init();
+        MythicMobsHook.init();
 
         getCommand("albcore").setExecutor(new ALBCoreCommand(this));
         getLogger().info("ALBCore v" + getDescription().getVersion() + " enabled.");
@@ -122,7 +123,7 @@ public final class ALBCore extends JavaPlugin {
         getLogger().info("ALBCore disabled.");
     }
     public FancyHologramsHook holograms() {
-        return null; // static class — use FancyHologramsHook.create() directly
+        return null;
     }
 
     public static ALBCore getInstance() {

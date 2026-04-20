@@ -16,6 +16,8 @@ public interface Condition {
 
     static BlockTypeCondition.Builder blockType() { return new BlockTypeCondition.Builder();}
 
+    static MobTypeCondition.Builder mobType() { return new MobTypeCondition.Builder(); }
+
     static PlayerPlacedCondition playerPlaced() { return PlayerPlacedCondition.isPlaced(); }
     static PlayerPlacedCondition notPlayerPlaced() { return PlayerPlacedCondition.isNotPlaced(); }
 }

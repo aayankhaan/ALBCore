@@ -2,6 +2,7 @@ package com.aayan.albcore.ability.trigger;
 
 import com.aayan.albcore.ALBCore;
 import com.aayan.albcore.condition.ConditionSet;
+import com.aayan.albcore.condition.MobTypeCondition;
 import com.aayan.albcore.util.TextUtil;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -25,11 +26,6 @@ public final class OnDefendTrigger implements Listener {
 
     private final List<DefendEntry> entries = new ArrayList<>();
 
-    /**
-     * @param itemId     if non-null, only fires when this item is held in main hand.
-     *                   For armor-based triggers use ON_WEAR instead.
-     * @param action     receives (player who got hit, attacker or null if no attacker)
-     */
     public void addCallback(String itemId, long cooldownMs, String cooldownKey,
                             String cooldownMsg, ConditionSet conditions,
                             BiConsumer<Player, Entity> action) {
@@ -41,7 +37,6 @@ public final class OnDefendTrigger implements Listener {
     public void onDamage(EntityDamageEvent e) {
         if (!(e.getEntity() instanceof Player player)) return;
 
-        // resolve attacker (may be null for fall damage, fire, etc.)
         Entity attacker = null;
         if (e instanceof EntityDamageByEntityEvent byEntity) {
             attacker = byEntity.getDamager();
@@ -52,6 +47,9 @@ public final class OnDefendTrigger implements Listener {
 
         for (DefendEntry entry : entries) {
             if (entry.itemId() != null && !entry.itemId().equals(registryId)) continue;
+
+            injectMobTarget(entry.conditions(), attacker);
+
             if (!entry.conditions().evaluate(player)) continue;
 
             if (entry.cooldownMs() > 0 && ALBCore.api().cooldowns()
@@ -74,4 +72,19 @@ public final class OnDefendTrigger implements Listener {
     }
 
     public void clear() { entries.clear(); }
+
+    private void injectMobTarget(ConditionSet conditions, Entity target) {
+        if (conditions == null || conditions.isEmpty()) return;
+        try {
+            var field = ConditionSet.class.getDeclaredField("conditions");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            var list = (java.util.List<com.aayan.albcore.condition.Condition>) field.get(conditions);
+            for (var condition : list) {
+                if (condition instanceof MobTypeCondition mtc) {
+                    mtc.withTarget(target);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
 }
