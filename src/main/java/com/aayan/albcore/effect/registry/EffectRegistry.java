@@ -29,6 +29,9 @@ public final class EffectRegistry {
     // effect id -> definition
     private final Map<String, EffectDefinition> effects = new ConcurrentHashMap<>();
 
+    // tracks which effect ids came from yml files (so reload only clears those)
+    private final Set<String> ymlSourced = ConcurrentHashMap.newKeySet();
+
     public EffectRegistry(ALBCore plugin) {
         this.plugin = plugin;
     }
@@ -36,10 +39,14 @@ public final class EffectRegistry {
     // ── Load from config ─────────────────────────────
 
     /**
-     * Load all effect yml files from plugins/ALBCore/effects/
+     * Load all effect yml files from plugins/ALBCore/effects/.
+     * On first load this is called once from ALBCoreAPI.
+     * For a runtime reload (e.g. /albcore reload) use {@link #reload()} instead —
+     * it preserves code-registered effects.
      */
     public void loadAll() {
         effects.clear();
+        ymlSourced.clear();
 
         File effectsDir = new File(plugin.getDataFolder(), "effects");
         if (!effectsDir.exists()) {
@@ -55,6 +62,38 @@ public final class EffectRegistry {
         }
 
         LOG.info("[ALBCore] Loaded " + effects.size() + " effects from config.");
+    }
+
+    /**
+     * Reload yml-sourced effects only. Code-registered effects from other
+     * plugins are preserved. Safe to call from /albcore reload at runtime.
+     */
+    public void reload() {
+        // remove only yml-sourced entries
+        for (String id : ymlSourced) {
+            effects.remove(id);
+        }
+        ymlSourced.clear();
+
+        File effectsDir = new File(plugin.getDataFolder(), "effects");
+        if (!effectsDir.exists()) {
+            effectsDir.mkdirs();
+            LOG.info("[ALBCore] Effects folder created. No effects to reload.");
+            return;
+        }
+
+        File[] files = effectsDir.listFiles((dir, name) -> name.endsWith(".yml"));
+        if (files == null || files.length == 0) {
+            LOG.info("[ALBCore] Effects folder is empty. Cleared yml-sourced effects.");
+            return;
+        }
+
+        for (File file : files) {
+            loadFromFile(file);
+        }
+
+        LOG.info("[ALBCore] Reloaded " + ymlSourced.size()
+                + " yml effects (" + effects.size() + " total including code-registered).");
     }
 
     private void loadFromFile(File file) {
@@ -128,7 +167,9 @@ public final class EffectRegistry {
                     null, null, null // no code callbacks for config-driven
             );
 
-            registerEffect(def);
+            if (registerEffect(def)) {
+                ymlSourced.add(def.getId());
+            }
 
         } catch (Exception e) {
             LOG.warning("[ALBCore | Effects] Failed to load effect: " + file.getName() + " — " + e.getMessage());
@@ -139,16 +180,19 @@ public final class EffectRegistry {
 
     /**
      * Register an effect definition. Rejects duplicates.
+     *
+     * @return true if the effect was registered, false if a duplicate was rejected.
      */
-    public void registerEffect(EffectDefinition def) {
+    public boolean registerEffect(EffectDefinition def) {
         if (effects.containsKey(def.getId())) {
             LOG.severe("[ALBCore | Effects] Duplicate effect ID '" + def.getId()
                     + "'! Already registered. Change the ID to avoid conflicts.");
-            return;
+            return false;
         }
         effects.put(def.getId(), def);
         LOG.info("[ALBCore | Effects] Registered effect: " + def.getId()
                 + " (trigger=" + def.getTrigger() + ", maxLevel=" + def.getMaxLevel() + ")");
+        return true;
     }
 
     // ── Query ────────────────────────────────────────

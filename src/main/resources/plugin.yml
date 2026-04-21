@@ -7,7 +7,7 @@ softdepend: [PlaceholderAPI, Vault, FancyHolograms, IridiumSkyblock, WorldGuard,
 commands:
   albcore:
     description: ALBCore admin commands
-    usage: /albcore <help|version|debug|reload|rarities|items|cooldowns>
+    usage: /albcore <help|version|debug|reload|rarities|items|effects|cooldowns>
     permission: albcore.admin
     permission-default: op
 
