@@ -1,431 +1,168 @@
-package com.aayan.albcore.effect.registry;
+package com.aayan.albcore.command;
 
 import com.aayan.albcore.ALBCore;
-import com.aayan.albcore.ability.trigger.AbilityTrigger;
-import com.aayan.albcore.condition.Condition;
-import com.aayan.albcore.condition.ConditionSet;
-import com.aayan.albcore.condition.MobTypeCondition;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Entity;
+import com.aayan.albcore.util.TextUtil;
+import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 
-import java.io.File;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
+import java.util.List;
 
-/**
- * Central registry for all registered effects.
- * Effects are loaded from ALBCore/effects/*.yml and can also be registered via code.
- * Any plugin can then apply/remove effects on items using the API.
- */
-public final class EffectRegistry {
+public final class ALBCoreCommand implements CommandExecutor, TabCompleter {
 
-    private static final Logger LOG = Logger.getLogger("ALBCore");
     private final ALBCore plugin;
 
-    // effect id -> definition
-    private final Map<String, EffectDefinition> effects = new ConcurrentHashMap<>();
-
-    // tracks which effect ids came from yml files (so reload only clears those)
-    private final Set<String> ymlSourced = ConcurrentHashMap.newKeySet();
-
-    public EffectRegistry(ALBCore plugin) {
+    public ALBCoreCommand(ALBCore plugin) {
         this.plugin = plugin;
     }
 
-    // ── Load from config ─────────────────────────────
-
-    /**
-     * Load all effect yml files from plugins/ALBCore/effects/.
-     * On first load this is called once from ALBCoreAPI.
-     * For a runtime reload (e.g. /albcore reload) use {@link #reload()} instead —
-     * it preserves code-registered effects.
-     */
-    public void loadAll() {
-        effects.clear();
-        ymlSourced.clear();
-
-        File effectsDir = new File(plugin.getDataFolder(), "effects");
-        if (!effectsDir.exists()) {
-            effectsDir.mkdirs();
-            return;
+    @Override
+    public boolean onCommand(CommandSender sender, Command cmd,
+                             String label, String[] args) {
+        if (!sender.hasPermission("albcore.admin")) {
+            sendError(sender, "No permission.");
+            return true;
         }
 
-        File[] files = effectsDir.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null) return;
-
-        for (File file : files) {
-            loadFromFile(file);
+        if (args.length == 0) {
+            sendHelp(sender);
+            return true;
         }
 
-        LOG.info("[ALBCore] Loaded " + effects.size() + " effects from config.");
-    }
+        switch (args[0].toLowerCase()) {
 
-    /**
-     * Reload yml-sourced effects only. Code-registered effects from other
-     * plugins are preserved. Safe to call from /albcore reload at runtime.
-     */
-    public void reload() {
-        // remove only yml-sourced entries
-        for (String id : ymlSourced) {
-            effects.remove(id);
-        }
-        ymlSourced.clear();
+            case "help" -> sendHelp(sender);
 
-        File effectsDir = new File(plugin.getDataFolder(), "effects");
-        if (!effectsDir.exists()) {
-            effectsDir.mkdirs();
-            LOG.info("[ALBCore] Effects folder created. No effects to reload.");
-            return;
-        }
-
-        File[] files = effectsDir.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null || files.length == 0) {
-            LOG.info("[ALBCore] Effects folder is empty. Cleared yml-sourced effects.");
-            return;
-        }
-
-        for (File file : files) {
-            loadFromFile(file);
-        }
-
-        LOG.info("[ALBCore] Reloaded " + ymlSourced.size()
-                + " yml effects (" + effects.size() + " total including code-registered).");
-    }
-
-    private void loadFromFile(File file) {
-        String id = file.getName().replace(".yml", "").toLowerCase();
-
-        try {
-            YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
-
-            // Parse trigger
-            String triggerStr = cfg.getString("trigger", "ON_ATTACK");
-            AbilityTrigger trigger;
-            try {
-                trigger = AbilityTrigger.valueOf(triggerStr.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                LOG.warning("[ALBCore | Effects] Invalid trigger '" + triggerStr + "' in " + file.getName());
-                return;
+            case "version" -> {
+                TextUtil.send(sender, "<gray>--- <white>ALBCore Info <gray>---");
+                TextUtil.send(sender, "  <gray>Version: <white>" + plugin.getDescription().getVersion());
+                TextUtil.send(sender, "  <gray>Author: <white>" + String.join(", ", plugin.getDescription().getAuthors()));
+                TextUtil.send(sender, "  <gray>Debug: <white>" + (ALBCore.api().config().isDebug() ? "<green>ON" : "<red>OFF"));
+                TextUtil.send(sender, "  <gray>Registered items: <white>" + ALBCore.api().registry().size());
+                TextUtil.send(sender, "  <gray>Loaded rarities: <white>" + ALBCore.api().rarities().getAll().size());
             }
 
-            int maxLevel = cfg.getInt("max-level", 1);
-            long cooldown = cfg.getLong("cooldown", 0);
-            double chance = cfg.getDouble("chance", 100.0);
-            String displayName = cfg.getString("display-name", "<white>" + id + " {level}");
-            List<String> description = cfg.getStringList("description");
-            if (description.isEmpty()) {
-                description = cfg.getStringList("lore"); // alias
+            case "debug" -> {
+                boolean current = ALBCore.api().config().isDebug();
+                plugin.getConfig().set("debug", !current);
+                plugin.saveConfig();
+                ALBCore.api().config().load();
+                sendSuccess(sender, "Debug mode: " + (!current ? "<green>ON" : "<red>OFF"));
             }
 
-            // Parse conditions
-            ConditionSet conditions = ConditionSet.empty();
-            ConfigurationSection condSection = cfg.getConfigurationSection("conditions");
-            if (condSection != null) {
-                // Mob type condition
-                List<String> mobTypes = condSection.getStringList("mob-type");
-                if (!mobTypes.isEmpty()) {
-                    conditions.add(Condition.mobType().is(mobTypes));
-                }
+            case "reload" -> {
+                ALBCore.api().config().load();
+                ALBCore.api().rarities().load();
+                int before = ALBCore.api().effects().getAllEffects().size();
+                ALBCore.api().effects().reload();
+                int after = ALBCore.api().effects().getAllEffects().size();
+                sendSuccess(sender, "ALBCore reloaded. Effects: "
+                        + before + " \u2192 " + after);
+            }
 
-                // World condition
-                String world = condSection.getString("world");
-                if (world != null) {
-                    conditions.add(Condition.playerWorld().equals(world));
+            case "rarities" -> {
+                TextUtil.send(sender, "<gray>--- <white>Loaded Rarities <gray>("
+                        + ALBCore.api().rarities().getAll().size() + "<gray>) ---");
+                ALBCore.api().rarities().getAll().forEach((key, display) ->
+                        TextUtil.send(sender, "  <dark_gray>» " + display
+                                + " <dark_gray>(" + key + ")"));
+            }
+
+            case "items" -> {
+                TextUtil.send(sender, "<gray>--- <white>Registered Items <gray>("
+                        + ALBCore.api().registry().size() + "<gray>) ---");
+                if (ALBCore.api().registry().getIds().isEmpty()) {
+                    TextUtil.send(sender, "  <dark_gray>No items registered.");
+                } else {
+                    ALBCore.api().registry().getIds().forEach(id ->
+                            TextUtil.send(sender, "  <dark_gray>» <white>" + id));
                 }
             }
 
-            // Parse actions
-            List<EffectAction> actions = new ArrayList<>();
-            List<Map<?, ?>> actionsList = cfg.getMapList("actions");
-            for (Map<?, ?> actionMap : actionsList) {
-                String type = String.valueOf(actionMap.get("type"));
-                Map<String, Object> params = new LinkedHashMap<>();
-                for (Map.Entry<?, ?> entry : actionMap.entrySet()) {
-                    String key = String.valueOf(entry.getKey());
-                    if (!key.equals("type")) {
-                        params.put(key, entry.getValue());
+            case "effects" -> {
+                var all = ALBCore.api().effects().getAllEffects();
+                TextUtil.send(sender, "<gray>--- <white>Registered Effects <gray>("
+                        + all.size() + "<gray>) ---");
+                if (all.isEmpty()) {
+                    TextUtil.send(sender, "  <dark_gray>No effects registered.");
+                } else {
+                    for (var def : all) {
+                        String src = def.isCodeDriven() ? "<aqua>code" : "<yellow>yml";
+                        TextUtil.send(sender, "  <dark_gray>\u00bb <white>" + def.getId()
+                                + " <dark_gray>(" + src + "<dark_gray>, trigger="
+                                + def.getTrigger() + ", maxLevel=" + def.getMaxLevel() + ")");
                     }
                 }
-                actions.add(new EffectAction(type, params));
             }
 
-            // Parse applicable items
-            Set<String> applicableItems = new HashSet<>();
-            List<String> itemList = cfg.getStringList("applicable-items");
-            for (String item : itemList) {
-                applicableItems.add(item.toUpperCase());
+            case "cooldowns" -> {
+                if (args.length < 2) {
+                    sendError(sender, "Usage: /albcore cooldowns <player>");
+                    return true;
+                }
+                Player target = Bukkit.getPlayer(args[1]);
+                if (target == null) {
+                    sendError(sender, "Player not found: " + args[1]);
+                    return true;
+                }
+                var all = ALBCore.api().cooldowns().getAll(target.getUniqueId());
+                if (all.isEmpty()) {
+                    TextUtil.send(sender, "  <gray>" + target.getName()
+                            + " has no active cooldowns.");
+                    return true;
+                }
+                TextUtil.send(sender, "<gray>--- <white>Cooldowns for "
+                        + target.getName() + " <gray>---");
+                all.forEach((key, expiry) -> {
+                    String remaining = ALBCore.api().cooldowns()
+                            .getFormatted(target.getUniqueId(), key);
+                    TextUtil.send(sender, "  <dark_gray>» <white>" + key
+                            + " <dark_gray>→ <yellow>" + remaining);
+                });
             }
 
-            EffectDefinition def = new EffectDefinition(
-                    id, trigger, maxLevel, cooldown, chance,
-                    displayName, description, conditions, actions,
-                    applicableItems,
-                    null, null, null // no code callbacks for config-driven
-            );
-
-            if (registerEffect(def)) {
-                ymlSourced.add(def.getId());
-            }
-
-        } catch (Exception e) {
-            LOG.warning("[ALBCore | Effects] Failed to load effect: " + file.getName() + " — " + e.getMessage());
+            default -> sendHelp(sender);
         }
-    }
 
-    // ── Register ─────────────────────────────────────
-
-    /**
-     * Register an effect definition. Rejects duplicates.
-     *
-     * @return true if the effect was registered, false if a duplicate was rejected.
-     */
-    public boolean registerEffect(EffectDefinition def) {
-        if (effects.containsKey(def.getId())) {
-            LOG.severe("[ALBCore | Effects] Duplicate effect ID '" + def.getId()
-                    + "'! Already registered. Change the ID to avoid conflicts.");
-            return false;
-        }
-        effects.put(def.getId(), def);
-        LOG.info("[ALBCore | Effects] Registered effect: " + def.getId()
-                + " (trigger=" + def.getTrigger() + ", maxLevel=" + def.getMaxLevel() + ")");
         return true;
     }
 
-    // ── Query ────────────────────────────────────────
-
-    public EffectDefinition getEffect(String id) {
-        return effects.get(id.toLowerCase());
-    }
-
-    public boolean hasEffect(String id) {
-        return effects.containsKey(id.toLowerCase());
-    }
-
-    public Collection<EffectDefinition> getAllEffects() {
-        return Collections.unmodifiableCollection(effects.values());
-    }
-
-    public Map<String, EffectDefinition> getEffectMap() {
-        return Collections.unmodifiableMap(effects);
-    }
-
-    // ── Fluent API ───────────────────────────────────
-
-    /**
-     * Start building a new effect via code.
-     */
-    public EffectBuilder register(AbilityTrigger trigger) {
-        return new EffectBuilder(this, trigger);
-    }
-
-    /**
-     * Create an applier to add/remove effects on an item.
-     */
-    public EffectApplier applyTo(ItemStack item) {
-        return new EffectApplier(this, item);
-    }
-
-    /**
-     * Shortcut: apply a single effect to an item. No lore added.
-     */
-    public ItemStack apply(ItemStack item, String effectId, int level) {
-        return applyTo(item).addEffect(effectId, level).apply();
-    }
-
-    /**
-     * Shortcut: apply effect with custom displayName and lore on the item.
-     * Both displayName and lore are optional — pass null to use defaults from the effect definition.
-     */
-    public ItemStack apply(ItemStack item, String effectId, int level, String displayName, java.util.List<String> lore) {
-        EffectDefinition def = getEffect(effectId.toLowerCase());
-        if (def == null) return applyTo(item).addEffect(effectId, level).apply();
-
-        int clampedLevel = Math.max(1, Math.min(level, def.getMaxLevel()));
-
-        // Resolve displayName: custom > default from definition
-        String resolvedName = (displayName != null)
-                ? displayName.replace("{level}", toRoman(clampedLevel))
-                : def.formatDisplayName(clampedLevel);
-
-        // Resolve lore: custom > default from definition
-        java.util.List<String> resolvedLore = (lore != null)
-                ? lore.stream().map(l -> l.replace("{level}", String.valueOf(clampedLevel))).toList()
-                : def.formatDescription(clampedLevel);
-
-        return applyTo(item)
-                .addEffectWithLore(effectId, level, resolvedName, resolvedLore)
-                .apply();
-    }
-
-    /**
-     * Shortcut: apply effect with default displayName and lore from effect definition.
-     */
-    public ItemStack applyWithLore(ItemStack item, String effectId, int level) {
-        return applyTo(item).addEffectWithLore(effectId, level).apply();
-    }
-
-    /**
-     * Shortcut: remove a single effect from an item.
-     */
-    public ItemStack remove(ItemStack item, String effectId) {
-        return applyTo(item).removeEffect(effectId).apply();
-    }
-
-    /**
-     * Get all effects currently on an item.
-     */
-    public Map<String, Integer> getItemEffects(ItemStack item) {
-        return EffectApplier.loadEffects(item);
-    }
-
-    /**
-     * Check if an item has a specific effect.
-     */
-    public boolean itemHasEffect(ItemStack item, String effectId) {
-        return getItemEffects(item).containsKey(effectId.toLowerCase());
-    }
-
-    /**
-     * Get the level of a specific effect on an item, or 0 if not present.
-     */
-    public int getItemEffectLevel(ItemStack item, String effectId) {
-        return getItemEffects(item).getOrDefault(effectId.toLowerCase(), 0);
-    }
-
-    // ── Trigger firing ───────────────────────────────
-
-    /**
-     * Called by OnAttackTrigger — fires all matching effects on the held item.
-     */
-    public void fireAttackEffects(Player player, Entity target, ItemStack held) {
-        Map<String, Integer> itemEffects = EffectApplier.loadEffects(held);
-        if (itemEffects.isEmpty()) return;
-
-        for (Map.Entry<String, Integer> entry : itemEffects.entrySet()) {
-            EffectDefinition def = effects.get(entry.getKey());
-            if (def == null || def.getTrigger() != AbilityTrigger.ON_ATTACK) continue;
-
-            int level = entry.getValue();
-
-            // Chance check
-            if (!def.rollChance()) continue;
-
-            // Cooldown check
-            String cooldownKey = "effect:" + def.getId();
-            if (def.getCooldownMs() > 0) {
-                if (ALBCore.api().cooldowns().isOnCooldown(player.getUniqueId(), cooldownKey)) continue;
-                ALBCore.api().cooldowns().set(player.getUniqueId(), cooldownKey, def.getCooldownMs());
-            }
-
-            // Inject mob target into conditions
-            injectMobTarget(def.getConditions(), target);
-
-            // Condition check
-            if (!def.getConditions().evaluate(player)) continue;
-
-            // Execute
-            if (def.isCodeDriven() && def.getAttackCallback() != null) {
-                def.getAttackCallback().execute(player, target, level);
-            } else {
-                for (EffectAction action : def.getActions()) {
-                    EffectActionExecutor.executeAttack(action, player, target, level);
-                }
-            }
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command cmd,
+                                      String label, String[] args) {
+        if (args.length == 1) return List.of(
+                "help", "version", "debug", "reload",
+                "rarities", "items", "effects", "cooldowns");
+        if (args.length == 2 && args[0].equalsIgnoreCase("cooldowns")) {
+            return Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .toList();
         }
+        return List.of();
     }
 
-    /**
-     * Called by OnDefendTrigger — fires all matching effects on the held item.
-     */
-    public void fireDefendEffects(Player player, Entity attacker, ItemStack held) {
-        Map<String, Integer> itemEffects = EffectApplier.loadEffects(held);
-        if (itemEffects.isEmpty()) return;
+    // Helpers
 
-        for (Map.Entry<String, Integer> entry : itemEffects.entrySet()) {
-            EffectDefinition def = effects.get(entry.getKey());
-            if (def == null || def.getTrigger() != AbilityTrigger.ON_DEFEND) continue;
-
-            int level = entry.getValue();
-            if (!def.rollChance()) continue;
-
-            String cooldownKey = "effect:" + def.getId();
-            if (def.getCooldownMs() > 0) {
-                if (ALBCore.api().cooldowns().isOnCooldown(player.getUniqueId(), cooldownKey)) continue;
-                ALBCore.api().cooldowns().set(player.getUniqueId(), cooldownKey, def.getCooldownMs());
-            }
-
-            injectMobTarget(def.getConditions(), attacker);
-            if (!def.getConditions().evaluate(player)) continue;
-
-            if (def.isCodeDriven() && def.getDefendCallback() != null) {
-                def.getDefendCallback().execute(player, attacker, level);
-            } else {
-                for (EffectAction action : def.getActions()) {
-                    EffectActionExecutor.executeDefend(action, player, attacker, level);
-                }
-            }
-        }
+    private void sendHelp(CommandSender sender) {
+        TextUtil.send(sender, "<gray>--- <white>ALBCore Commands <gray>---");
+        TextUtil.send(sender, "  <aqua>/albcore help <dark_gray>— show this menu");
+        TextUtil.send(sender, "  <aqua>/albcore version <dark_gray>— plugin info");
+        TextUtil.send(sender, "  <aqua>/albcore debug <dark_gray>— toggle debug mode");
+        TextUtil.send(sender, "  <aqua>/albcore reload <dark_gray>— reload all configs");
+        TextUtil.send(sender, "  <aqua>/albcore rarities <dark_gray>— list loaded rarities");
+        TextUtil.send(sender, "  <aqua>/albcore items <dark_gray>\u2014 list registered items");
+        TextUtil.send(sender, "  <aqua>/albcore effects <dark_gray>\u2014 list registered effects");
+        TextUtil.send(sender, "  <aqua>/albcore cooldowns <player> <dark_gray>\u2014 view player cooldowns");
     }
 
-    /**
-     * Called by generic triggers (ON_HOLD, ON_CLICK, ON_SNEAK, etc).
-     */
-    public void fireGenericEffects(Player player, ItemStack held, AbilityTrigger triggerType) {
-        Map<String, Integer> itemEffects = EffectApplier.loadEffects(held);
-        if (itemEffects.isEmpty()) return;
-
-        for (Map.Entry<String, Integer> entry : itemEffects.entrySet()) {
-            EffectDefinition def = effects.get(entry.getKey());
-            if (def == null || def.getTrigger() != triggerType) continue;
-
-            int level = entry.getValue();
-            if (!def.rollChance()) continue;
-
-            String cooldownKey = "effect:" + def.getId();
-            if (def.getCooldownMs() > 0) {
-                if (ALBCore.api().cooldowns().isOnCooldown(player.getUniqueId(), cooldownKey)) continue;
-                ALBCore.api().cooldowns().set(player.getUniqueId(), cooldownKey, def.getCooldownMs());
-            }
-
-            if (!def.getConditions().evaluate(player)) continue;
-
-            if (def.isCodeDriven() && def.getGenericCallback() != null) {
-                def.getGenericCallback().execute(player, level);
-            } else {
-                for (EffectAction action : def.getActions()) {
-                    EffectActionExecutor.executeGeneric(action, player, level);
-                }
-            }
-        }
+    private void sendSuccess(CommandSender sender, String message) {
+        TextUtil.send(sender, ALBCore.api().config().getPrefix() + "<green>" + message);
     }
 
-    // ── Internal ─────────────────────────────────────
-
-    private void injectMobTarget(ConditionSet conditions, Entity target) {
-        if (conditions == null || conditions.isEmpty() || target == null) return;
-        try {
-            var field = ConditionSet.class.getDeclaredField("conditions");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            var list = (List<com.aayan.albcore.condition.Condition>) field.get(conditions);
-            for (var condition : list) {
-                if (condition instanceof MobTypeCondition mtc) {
-                    mtc.withTarget(target);
-                }
-            }
-        } catch (Exception ignored) {}
-    }
-
-    private String toRoman(int level) {
-        return switch (level) {
-            case 1 -> "I"; case 2 -> "II"; case 3 -> "III";
-            case 4 -> "IV"; case 5 -> "V"; case 6 -> "VI";
-            case 7 -> "VII"; case 8 -> "VIII"; case 9 -> "IX";
-            case 10 -> "X"; default -> String.valueOf(level);
-        };
+    private void sendError(CommandSender sender, String message) {
+        TextUtil.send(sender, ALBCore.api().config().getPrefix() + "<red>" + message);
     }
 }

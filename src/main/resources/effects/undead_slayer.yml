@@ -1,20 +1,10 @@
-# ─────────────────────────────────────────
-# Undead Slayer Effect
-# ─────────────────────────────────────────
-# Deals bonus damage to undead mobs.
-# Level scales damage: 8 * level with 1.3x multiplier.
-
-trigger: ON_ATTACK
-max-level: 3
-cooldown: 1500
-chance: 100
+id: undead_slayer
 
 display-name: "<red>Undead Slayer {level}"
-description:
-  - "<gray>Deals bonus damage to undead mobs"
-  - "<gray>Damage: <white>+{level}x boost"
+lore:
+  - "<gray>Deals <red>{damage}% <gray>more damage"
+  - "<gray>to undead mobs"
 
-# Only works on swords
 applicable-items:
   - DIAMOND_SWORD
   - NETHERITE_SWORD
@@ -34,18 +24,29 @@ conditions:
     - STRAY
     - PHANTOM
 
-actions:
-  - type: DAMAGE_BOOST
-    damage: "8 * level"
-    multiplier: 1.3
-  - type: PARTICLE
-    particle: SOUL_FIRE_FLAME
-    count: 15
-    offset-x: 0.3
-    offset-y: 0.5
-    offset-z: 0.3
-    speed: 0.05
-  - type: SOUND
-    sound: ENTITY_WITHER_SKELETON_DEATH
-    volume: 0.5
-    pitch: 1.2
+levels:
+
+  1:
+    chance: 100
+    cooldown: 1500
+    effects:
+      - type: DAMAGE_BOOST
+        multiplier: 1.1
+    placeholder:
+      damage: 10
+  2:
+    chance: 100
+    cooldown: 1400
+    effects:
+      - type: DAMAGE_BOOST
+        multiplier: 1.2
+    placeholder:
+      damage: 20
+  3:
+    chance: 100
+    cooldown: 1300
+    effects:
+      - type: DAMAGE_BOOST
+        multiplier: 1.3
+    placeholder:
+      damage: 30
