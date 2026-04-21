@@ -41,8 +41,11 @@ public final class OnAttackTrigger implements Listener {
 
         String registryId = ALBCore.api().registry().getId(held).orElse(null);
 
+        ALBCore.api().effects().fireAttackEffects(player, victim, held);
+
         for (AttackEntry entry : entries) {
             if (entry.itemId() != null && !entry.itemId().equals(registryId)) continue;
+
             injectMobTarget(entry.conditions(), victim);
 
             if (!entry.conditions().evaluate(player)) continue;
@@ -67,7 +70,6 @@ public final class OnAttackTrigger implements Listener {
     }
 
     public void clear() { entries.clear(); }
-
 
     private void injectMobTarget(ConditionSet conditions, Entity target) {
         if (conditions == null || conditions.isEmpty()) return;

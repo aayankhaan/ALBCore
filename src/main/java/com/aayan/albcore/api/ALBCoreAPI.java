@@ -14,6 +14,7 @@ import com.aayan.albcore.effect.MessageEffect;
 import com.aayan.albcore.effect.PotionEffect;
 import com.aayan.albcore.effect.SoundEffect;
 import com.aayan.albcore.effect.TimberEffect;
+import com.aayan.albcore.effect.registry.EffectRegistry;
 import com.aayan.albcore.hook.PlaceholderRegistry;
 import com.aayan.albcore.hook.ProtocolLibHook;
 import com.aayan.albcore.hook.ShopGUIPlusHook;
@@ -46,6 +47,7 @@ public final class ALBCoreAPI {
     private final DebugLogger debug;
     private final TaskScheduler scheduler;
     private final MultiplierManager multipliers = new MultiplierManager();
+    private final EffectRegistry effectRegistry;
 
     // effects
     private final MessageEffect       message    = new MessageEffect();
@@ -100,8 +102,10 @@ public final class ALBCoreAPI {
         this.scheduler = new TaskScheduler(plugin);
         this.registry = new CustomItemRegistry(plugin); // FIXED
         this.rarities = new RarityManager(plugin);
+        this.effectRegistry = new EffectRegistry(plugin);
 
         this.rarities.load();
+        this.effectRegistry.loadAll();
     }
 
     public void setDatabase(DatabaseManager database) {
@@ -138,6 +142,7 @@ public final class ALBCoreAPI {
     public HealEffect           heal()       { return heal; }
     public AddHeartsEffect      addHearts()  { return addHearts; }
     public DamageBoostEffect    damageBoost() { return damageBoost; }
+    public EffectRegistry       effects()     { return effectRegistry; }
 
     public DatabaseManager db() { return database; }
     public PlayerStatManager stats() { return stats; }
@@ -150,6 +155,7 @@ public final class ALBCoreAPI {
     public OnClickTrigger onClick() { return onClickTrigger; }
     public OnBreakTrigger onBreak() { return onBreakTrigger; }
 
+
     public ItemBuilder item(Material material) {
         return new ItemBuilder(material);
     }
@@ -161,6 +167,7 @@ public final class ALBCoreAPI {
     public ParticleBuilder particles(Particle particle) {
         return new ParticleBuilder(particle);
     }
+
 
     public String toBase64(ItemStack item) {
         return SerializationUtil.toBase64(item);

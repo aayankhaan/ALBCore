@@ -40,8 +40,13 @@ public final class ALBCore extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+
+        // Save default effect configs
+        saveDefaultEffects();
+
         api = new ALBCoreAPI(this);
 
+        // init util first before anything uses it
         PlaceholderUtil.init();
 
         database = new DatabaseManager(this);
@@ -122,8 +127,19 @@ public final class ALBCore extends JavaPlugin {
         instance = null;
         getLogger().info("ALBCore disabled.");
     }
+
+    private void saveDefaultEffects() {
+        java.io.File effectsDir = new java.io.File(getDataFolder(), "effects");
+        if (!effectsDir.exists()) effectsDir.mkdirs();
+
+        java.io.File sample = new java.io.File(effectsDir, "undead_slayer.yml");
+        if (!sample.exists()) {
+            saveResource("effects/undead_slayer.yml", false);
+        }
+    }
+
     public FancyHologramsHook holograms() {
-        return null;
+        return null; // static class — use FancyHologramsHook.create() directly
     }
 
     public static ALBCore getInstance() {

@@ -37,6 +37,7 @@ public final class OnDefendTrigger implements Listener {
     public void onDamage(EntityDamageEvent e) {
         if (!(e.getEntity() instanceof Player player)) return;
 
+        // resolve attacker (may be null for fall damage, fire, etc.)
         Entity attacker = null;
         if (e instanceof EntityDamageByEntityEvent byEntity) {
             attacker = byEntity.getDamager();
@@ -45,9 +46,12 @@ public final class OnDefendTrigger implements Listener {
         ItemStack held = player.getInventory().getItemInMainHand();
         String registryId = ALBCore.api().registry().getId(held).orElse(null);
 
+        ALBCore.api().effects().fireDefendEffects(player, attacker, held);
+
         for (DefendEntry entry : entries) {
             if (entry.itemId() != null && !entry.itemId().equals(registryId)) continue;
 
+            // Inject attacker entity into MobTypeConditions before evaluating
             injectMobTarget(entry.conditions(), attacker);
 
             if (!entry.conditions().evaluate(player)) continue;
