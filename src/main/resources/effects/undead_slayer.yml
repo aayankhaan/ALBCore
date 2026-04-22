@@ -1,4 +1,5 @@
 id: undead_slayer
+trigger: ON_ATTACK
 
 display-name: "<red>Undead Slayer {level}"
 lore:
@@ -47,6 +48,6 @@ levels:
     cooldown: 1300
     effects:
       - type: DAMAGE_BOOST
-        multiplier: 1.3
+        multiplier: 3
     placeholder:
-      damage: 30
+      damage: 300

@@ -33,7 +33,7 @@ public final class OnDefendTrigger implements Listener {
                 cooldownMsg, conditions, action));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDamage(EntityDamageEvent e) {
         if (!(e.getEntity() instanceof Player player)) return;
 
@@ -46,7 +46,7 @@ public final class OnDefendTrigger implements Listener {
         ItemStack held = player.getInventory().getItemInMainHand();
         String registryId = ALBCore.api().registry().getId(held).orElse(null);
 
-        ALBCore.api().effects().fireDefendEffects(player, attacker, held);
+        ALBCore.api().effects().fireDefendEffects(player, attacker, held, e);
 
         for (DefendEntry entry : entries) {
             if (entry.itemId() != null && !entry.itemId().equals(registryId)) continue;

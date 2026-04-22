@@ -32,7 +32,7 @@ public final class OnAttackTrigger implements Listener {
                 cooldownMsg, conditions, action));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent e) {
         if (!(e.getDamager() instanceof Player player)) return;
 
@@ -41,7 +41,7 @@ public final class OnAttackTrigger implements Listener {
 
         String registryId = ALBCore.api().registry().getId(held).orElse(null);
 
-        ALBCore.api().effects().fireAttackEffects(player, victim, held);
+        ALBCore.api().effects().fireAttackEffects(player, victim, held, e);
 
         for (AttackEntry entry : entries) {
             if (entry.itemId() != null && !entry.itemId().equals(registryId)) continue;

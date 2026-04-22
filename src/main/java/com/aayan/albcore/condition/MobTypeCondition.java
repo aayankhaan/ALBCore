@@ -23,6 +23,7 @@ public final class MobTypeCondition implements Condition {
         return this;
     }
 
+
     @Override
     public boolean evaluate(Player player) {
         // If no target set, can't evaluate — pass through

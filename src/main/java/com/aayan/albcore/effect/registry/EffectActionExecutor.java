@@ -9,6 +9,8 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffectType;
 
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import java.util.logging.Logger;
 
 /**
@@ -22,13 +24,19 @@ public final class EffectActionExecutor {
     /**
      * Execute a single action for an attack trigger.
      */
-    public static void executeAttack(EffectAction action, Player player, Entity target, int level) {
+    public static void executeAttack(EffectAction action, Player player, Entity target, int level, EntityDamageByEntityEvent event) {
         switch (action.getType()) {
             case "DAMAGE_BOOST" -> {
-                double damage = action.evaluateExpression("damage", level, 0);
                 double multiplier = action.getDouble("multiplier", 1.0);
-                if (target instanceof LivingEntity living) {
-                    ALBCore.api().damageBoost().boost(living, player, damage, multiplier);
+                // If "damage" is explicitly set in the config, use the old boost method (new damage event)
+                if (action.getParams().containsKey("damage")) {
+                    double damage = action.evaluateExpression("damage", level, 0);
+                    if (target instanceof LivingEntity living) {
+                        ALBCore.api().damageBoost().boost(living, player, damage, multiplier);
+                    }
+                } else if (event != null) {
+                    // Otherwise, multiply the current attack damage
+                    ALBCore.api().damageBoost().apply(event, multiplier);
                 }
             }
             case "LIGHTNING" -> {
@@ -77,16 +85,24 @@ public final class EffectActionExecutor {
     /**
      * Execute a single action for a defend trigger.
      */
-    public static void executeDefend(EffectAction action, Player player, Entity attacker, int level) {
+    public static void executeDefend(EffectAction action, Player player, Entity attacker, int level, EntityDamageEvent event) {
+        if (action.getType().equals("DAMAGE_BOOST")) {
+             double multiplier = action.getDouble("multiplier", 1.0);
+             if (event != null && !action.getParams().containsKey("damage")) {
+                 // For defense, we might want to REDUCE damage (multiplier < 1)
+                 event.setDamage(event.getDamage() * multiplier);
+                 return;
+             }
+        }
         // Most actions are the same, just swap target context
-        executeAttack(action, player, attacker, level);
+        executeAttack(action, player, attacker, level, event instanceof EntityDamageByEntityEvent e ? e : null);
     }
 
     /**
      * Execute a single action for a generic trigger (ON_HOLD, ON_SNEAK, ON_CLICK, etc).
      */
     public static void executeGeneric(EffectAction action, Player player, int level) {
-        executeAttack(action, player, null, level);
+        executeAttack(action, player, null, level, null);
     }
 
     // ── Helpers ──────────────────────────────────────

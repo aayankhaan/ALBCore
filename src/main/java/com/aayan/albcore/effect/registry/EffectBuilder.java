@@ -1,9 +1,18 @@
 package com.aayan.albcore.effect.registry;
 
 import com.aayan.albcore.ability.trigger.AbilityTrigger;
+import com.aayan.albcore.condition.Condition;
 import com.aayan.albcore.condition.ConditionSet;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 public final class EffectBuilder {
 
@@ -12,21 +21,22 @@ public final class EffectBuilder {
 
     private String name;
     private String displayName = "<white>{name} {level}";
-    private List<String> description = new ArrayList<>();
-    private int maxLevel = 1;
-    private long cooldownMs = 0;
-    private double chance = 100.0;
+    private final List<String> description = new ArrayList<>();
     private ConditionSet conditions = ConditionSet.empty();
-    private Set<String> applicableItems = new HashSet<>();
+    private final Set<String> applicableItems = new HashSet<>();
 
-    private EffectDefinition.AttackCallback attackCallback;
-    private EffectDefinition.DefendCallback defendCallback;
-    private EffectDefinition.GenericCallback genericCallback;
+    private final Map<Integer, LevelBuilder> levelBuilders = new LinkedHashMap<>();
+
+    private EffectDefinition.AttackCallback sharedAttackCallback;
+    private EffectDefinition.DefendCallback sharedDefendCallback;
+    private EffectDefinition.GenericCallback sharedGenericCallback;
 
     public EffectBuilder(EffectRegistry registry, AbilityTrigger trigger) {
         this.registry = registry;
         this.trigger = trigger;
     }
+
+    // ── Top-level metadata ───────────────────────────
 
     public EffectBuilder name(String name) {
         this.name = name.toLowerCase();
@@ -48,30 +58,16 @@ public final class EffectBuilder {
         return this;
     }
 
-    public EffectBuilder maxLevel(int maxLevel) {
-        this.maxLevel = Math.max(1, maxLevel);
-        return this;
-    }
-
-    public EffectBuilder cooldown(long ms) {
-        this.cooldownMs = ms;
-        return this;
-    }
-
-    public EffectBuilder chance(double chance) {
-        this.chance = Math.max(0, Math.min(100, chance));
-        return this;
-    }
-
     public EffectBuilder conditions(ConditionSet conditions) {
         this.conditions = conditions;
         return this;
     }
 
-    /**
-     * Restrict which item types this effect can be applied to.
-     * Empty = any item.
-     */
+    public EffectBuilder condition(Condition condition) {
+        if (condition != null) this.conditions.add(condition);
+        return this;
+    }
+
     public EffectBuilder applicableTo(String... materials) {
         for (String m : materials) applicableItems.add(m.toUpperCase());
         return this;
@@ -82,20 +78,32 @@ public final class EffectBuilder {
         return this;
     }
 
-    // ── Callbacks ────────────────────────────────────
-
     public EffectBuilder onAttack(EffectDefinition.AttackCallback callback) {
-        this.attackCallback = callback;
+        this.sharedAttackCallback = callback;
         return this;
     }
 
     public EffectBuilder onDefend(EffectDefinition.DefendCallback callback) {
-        this.defendCallback = callback;
+        this.sharedDefendCallback = callback;
         return this;
     }
 
     public EffectBuilder onGeneric(EffectDefinition.GenericCallback callback) {
-        this.genericCallback = callback;
+        this.sharedGenericCallback = callback;
+        return this;
+    }
+
+    // ── Levels ───────────────────────────────────────
+
+    /**
+     * Configure a specific level of this effect.
+     */
+    public EffectBuilder level(int level, Consumer<LevelBuilder> configurator) {
+        if (level < 1) {
+            throw new IllegalArgumentException("[ALBCore | Effects] Level must be >= 1 (got " + level + ")");
+        }
+        LevelBuilder lb = levelBuilders.computeIfAbsent(level, LevelBuilder::new);
+        configurator.accept(lb);
         return this;
     }
 
@@ -105,13 +113,22 @@ public final class EffectBuilder {
         if (name == null || name.isEmpty()) {
             throw new IllegalStateException("[ALBCore | Effects] Effect name is required!");
         }
+        if (levelBuilders.isEmpty()) {
+            throw new IllegalStateException("[ALBCore | Effects] Effect '" + name
+                    + "' must define at least one level. Use .level(n, lvl -> ...)");
+        }
+
+        Map<Integer, LevelData> levels = new LinkedHashMap<>();
+        for (Map.Entry<Integer, LevelBuilder> e : levelBuilders.entrySet()) {
+            levels.put(e.getKey(), e.getValue().build());
+        }
 
         EffectDefinition def = new EffectDefinition(
-                name, trigger, maxLevel, cooldownMs, chance,
-                displayName, description, conditions,
-                List.of(), // no yml actions for code-driven
-                applicableItems,
-                attackCallback, defendCallback, genericCallback
+                name, trigger,
+                displayName, description,
+                conditions, applicableItems,
+                levels,
+                sharedAttackCallback, sharedDefendCallback, sharedGenericCallback
         );
 
         registry.registerEffect(def);
